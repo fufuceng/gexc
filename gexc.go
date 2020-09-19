@@ -77,7 +77,7 @@ func (f *fxHistoryUntilWrapper) Until(t time.Time) (response.History, error) {
 
 	currency, ok := CurrencyByCode(f.currency)
 	if !ok {
-		return response.History{}, fmt.Errorf("unsuportted currency: %v", f.currency)
+		return response.History{}, fmt.Errorf("%w: %v", ErrUnsupportedCurrency, f.currency)
 	}
 
 	var againstCurrencies []string
@@ -201,6 +201,6 @@ func New() *Fx {
 	}
 }
 
-func newWithClient(client openex.Client) *Fx {
+func newFxWithClient(client openex.Client) *Fx {
 	return &Fx{openexClient: client}
 }
