@@ -29,7 +29,7 @@ func (f *fxToWrapper) To(currency string) (float64, error) {
 		return 0, fmt.Errorf("%w: %v", ErrUnsupportedCurrency, currency)
 	}
 
-	resp, err := f.base.HistoryOf(fromCurrency.Code).Against(toCurrency.Code).Latest()
+	resp, err := f.base.BasedOn(fromCurrency.Code).Against(toCurrency.Code).Latest()
 	if err != nil {
 		return 0, fmt.Errorf("%w: %v", ErrClientFailed, err)
 	}
@@ -98,13 +98,13 @@ func (f *fxHistoryUntilWrapper) Until(t time.Time) (response.History, error) {
 	})
 
 	if err != nil {
-		return response.History{}, err
+		return response.History{}, fmt.Errorf("%w: %v", ErrClientFailed, err)
 	}
 
 	return *resp, nil
 }
 
-type fxHistoryFromWrapper struct {
+type fxRatesFromWrapper struct {
 	base         *Fx
 	baseCurrency string
 	against      []string
@@ -112,7 +112,7 @@ type fxHistoryFromWrapper struct {
 
 //From is the third step of the history.
 //It takes initial date
-func (f *fxHistoryFromWrapper) From(time time.Time) *fxHistoryUntilWrapper {
+func (f *fxRatesFromWrapper) From(time time.Time) *fxHistoryUntilWrapper {
 	return &fxHistoryUntilWrapper{
 		base:     f.base,
 		currency: f.baseCurrency,
@@ -122,7 +122,7 @@ func (f *fxHistoryFromWrapper) From(time time.Time) *fxHistoryUntilWrapper {
 }
 
 //Latest calculates currency values corresponding to the given currency based on today
-func (f *fxHistoryFromWrapper) Latest() (response.SingleDate, error) {
+func (f *fxRatesFromWrapper) Latest() (response.SingleDate, error) {
 	baseCurrency, ok := CurrencyByCode(f.baseCurrency)
 	if !ok {
 		return response.SingleDate{}, fmt.Errorf("%w: %v", ErrUnsupportedCurrency, f.baseCurrency)
@@ -150,15 +150,45 @@ func (f *fxHistoryFromWrapper) Latest() (response.SingleDate, error) {
 	return *resp, nil
 }
 
-type fxHistoryWrapper struct {
+//At calculates currency values corresponding to the given currency based on given date
+func (f *fxRatesFromWrapper) At(t time.Time) (response.SingleDate, error) {
+	curr, ok := CurrencyByCode(f.baseCurrency)
+	if !ok {
+		return response.SingleDate{}, fmt.Errorf("%w: %v", ErrUnsupportedCurrency, f.baseCurrency)
+	}
+
+	var againstCurrencies []string
+	for _, code := range f.against {
+		cur, ok := CurrencyByCode(code)
+		if !ok {
+			return response.SingleDate{}, fmt.Errorf("%w: %v", ErrUnsupportedCurrency, code)
+		}
+
+		againstCurrencies = append(againstCurrencies, cur.Code)
+	}
+
+	resp, err := f.base.openexClient.SingleDate(openex.SingleDateParams{
+		Date:    gtime.NewGexc(t),
+		Base:    curr.Code,
+		Symbols: againstCurrencies,
+	})
+
+	if err != nil {
+		return response.SingleDate{}, fmt.Errorf("%w: %v", ErrClientFailed, err)
+	}
+
+	return *resp, nil
+}
+
+type fxRatesWrapper struct {
 	base         *Fx
 	baseCurrency string
 }
 
 //Against is the second step of the currency history
 //It takes currencies that will be compared to base history in time range
-func (f *fxHistoryWrapper) Against(currencies ...string) *fxHistoryFromWrapper {
-	return &fxHistoryFromWrapper{
+func (f *fxRatesWrapper) Against(currencies ...string) *fxRatesFromWrapper {
+	return &fxRatesFromWrapper{
 		base:         f.base,
 		baseCurrency: f.baseCurrency,
 		against:      currencies,
@@ -166,7 +196,7 @@ func (f *fxHistoryWrapper) Against(currencies ...string) *fxHistoryFromWrapper {
 }
 
 //Fx collects all functionality of the library
-//It includes Amount, Convert and HistoryOf functions
+//It includes Amount, Convert and BasedOn functions
 type Fx struct {
 	openexClient openex.Client
 }
@@ -186,10 +216,10 @@ func (f *Fx) Convert(amount float64, from, to string) (float64, error) {
 	return f.Amount(amount).From(from).To(to)
 }
 
-//HistoryOf is the initial step of the collection of the currency history
-//It takes base currency that will be compared to others in time range
-func (f *Fx) HistoryOf(currency string) *fxHistoryWrapper {
-	return &fxHistoryWrapper{
+//BasedOn is the initial step of the collection of the currency history
+//It takes base currency that will be compared to others in time range or specific time
+func (f *Fx) BasedOn(currency string) *fxRatesWrapper {
+	return &fxRatesWrapper{
 		base:         f,
 		baseCurrency: currency,
 	}

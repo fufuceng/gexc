@@ -34,7 +34,7 @@ fmt.Println(converted) // -> 896₺
 ### Latest
 
 ```go
-latest, err := gexc.New().HistoryOf("EUR").Against("TRY", "USD").Latest()
+latest, err := gexc.New().BasedOn("EUR").Against("TRY", "USD").Latest()
 if err != nil {
     log.Fatal(err)
 }
@@ -56,9 +56,9 @@ Latest values of EUR
 from := time.Now().AddDate(0, 0, -1)
 until := time.Now()
 
-history, err := gexc.New().HistoryOf("EUR").Against("TRY", "USD").From(from).Until(until)
+history, err := gexc.New().BasedOn("EUR").Against("TRY", "USD").From(from).Until(until)
 if err != nil {
-    log.Fatalf(err)
+    log.Fatal(err)
 }
 
 fmt.Printf("History of %v: from: %v, until: %v\n", history.Base, history.StartAt, history.EndAt)
@@ -78,6 +78,28 @@ Date: 2020-09-18
 Date: 2020-09-17
      * Currency: TRY, Value: 8.9037
      * Currency: USD, Value: 1.1797
+*/
+
+```
+
+### Rates of Date
+
+```go
+
+date := time.Now().AddDate(0, 0, -3)
+
+rates, err := gexc.New().BasedOn("EUR").Against("TRY", "USD").At(date)
+if err != nil {
+    log.Fatal(err)
+}
+
+for curr, val := range rates.Rates {
+    fmt.Printf("* Currency: %v, Value: %v\n", curr, val)
+}
+
+/*
+* Currency: USD, Value: 1.1869
+* Currency: TRY, Value: 8.898
 */
 
 ```
