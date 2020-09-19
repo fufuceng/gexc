@@ -202,7 +202,7 @@ func TestFx_HistoryOfFullChain(t *testing.T) {
 				openexClient: tt.fields.openexClient,
 			}
 			got, err := f.
-				HistoryOf(tt.args.baseCurrency).
+				BasedOn(tt.args.baseCurrency).
 				Against(tt.args.against...).
 				From(tt.args.From).
 				Until(tt.args.Until)
