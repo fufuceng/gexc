@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/fufuceng/gexc/internal/openex"
 	"github.com/fufuceng/gexc/response"
-	time2 "github.com/fufuceng/gexc/time"
+	gtime "github.com/fufuceng/gexc/time"
 	"time"
 )
 
@@ -91,8 +91,8 @@ func (f *fxHistoryUntilWrapper) Until(t time.Time) (response.History, error) {
 	}
 
 	resp, err := f.base.openexClient.History(openex.HistoryParams{
-		StartAt: time2.NewGexc(f.from),
-		EndAt:   time2.NewGexc(t),
+		StartAt: gtime.NewGexc(f.from),
+		EndAt:   gtime.NewGexc(t),
 		Base:    currency.Code,
 		Symbols: againstCurrencies,
 	})
