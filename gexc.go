@@ -21,22 +21,22 @@ type fxToWrapper struct {
 func (f *fxToWrapper) To(currency string) (float64, error) {
 	fromCurrency, ok := CurrencyByCode(f.from)
 	if !ok {
-		return 0, fmt.Errorf("unsuportted currency: %v", f.from)
+		return 0, fmt.Errorf("%w: %v", ErrUnsupportedCurrency, f.from)
 	}
 
 	toCurrency, ok := CurrencyByCode(currency)
 	if !ok {
-		return 0, fmt.Errorf("unsuportted currency: %v", currency)
+		return 0, fmt.Errorf("%w: %v", ErrUnsupportedCurrency, currency)
 	}
 
 	resp, err := f.base.HistoryOf(fromCurrency.Code).Against(toCurrency.Code).Latest()
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("%w: %v", ErrClientFailed, err)
 	}
 
 	mul, ok := resp.Rates[toCurrency.Code]
 	if !ok {
-		return 0, fmt.Errorf("could not find %v data", toCurrency.Code)
+		return 0, fmt.Errorf("%w: %v", ErrCurrencyNotFound, toCurrency.Code)
 	}
 
 	return f.amount * mul, nil
@@ -68,11 +68,11 @@ type fxHistoryUntilWrapper struct {
 //It takes time value and validates all parameters then returns the history.
 func (f *fxHistoryUntilWrapper) Until(t time.Time) (response.History, error) {
 	if f.from.Equal(time.Time{}) || t.Equal(time.Time{}) {
-		return response.History{}, fmt.Errorf("time values should not be empty")
+		return response.History{}, fmt.Errorf("%w: time values should not be empty", ErrInvalidParameter)
 	}
 
 	if !t.After(f.from) {
-		return response.History{}, fmt.Errorf("until value should be bigger than from")
+		return response.History{}, fmt.Errorf("%w: until value should be bigger than from", ErrInvalidParameter)
 	}
 
 	currency, ok := CurrencyByCode(f.currency)
@@ -84,7 +84,7 @@ func (f *fxHistoryUntilWrapper) Until(t time.Time) (response.History, error) {
 	for _, code := range f.against {
 		cur, ok := CurrencyByCode(code)
 		if !ok {
-			return response.History{}, fmt.Errorf("unsupportted currency: %v", code)
+			return response.History{}, fmt.Errorf("%w: %v", ErrUnsupportedCurrency, code)
 		}
 
 		againstCurrencies = append(againstCurrencies, cur.Code)
@@ -125,14 +125,14 @@ func (f *fxHistoryFromWrapper) From(time time.Time) *fxHistoryUntilWrapper {
 func (f *fxHistoryFromWrapper) Latest() (response.SingleDate, error) {
 	baseCurrency, ok := CurrencyByCode(f.baseCurrency)
 	if !ok {
-		return response.SingleDate{}, fmt.Errorf("unsuportted currency: %v", f.baseCurrency)
+		return response.SingleDate{}, fmt.Errorf("%w: %v", ErrUnsupportedCurrency, f.baseCurrency)
 	}
 
 	var againstCurrencies []string
 	for _, code := range f.against {
 		cur, ok := CurrencyByCode(code)
 		if !ok {
-			return response.SingleDate{}, fmt.Errorf("unsupportted currency: %v", code)
+			return response.SingleDate{}, fmt.Errorf("%w: %v", ErrUnsupportedCurrency, code)
 		}
 
 		againstCurrencies = append(againstCurrencies, cur.Code)
@@ -144,7 +144,7 @@ func (f *fxHistoryFromWrapper) Latest() (response.SingleDate, error) {
 	})
 
 	if err != nil {
-		return response.SingleDate{}, err
+		return response.SingleDate{}, fmt.Errorf("%w: %v", ErrClientFailed, err)
 	}
 
 	return *resp, nil
